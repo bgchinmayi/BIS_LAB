@@ -1,0 +1,138 @@
+import numpy as np
+import random
+n = int(input("Enter number of retail stores: "))
+
+warehouse = (0, 0)
+cities = [warehouse]
+demand = []
+
+print("\nEnter store details:")
+
+for i in range(n):
+    x = float(input(f"Enter X coordinate of Store {i+1}: "))
+    y = float(input(f"Enter Y coordinate of Store {i+1}: "))
+    d = int(input(f"Enter demand of Store {i+1}: "))
+
+    cities.append((x, y))
+    demand.append(d)
+
+inventory = int(input("\nEnter warehouse inventory: "))
+
+# Check inventory
+if sum(demand) > inventory:
+    print("Warning: Warehouse inventory is insufficient!")
+    exit()
+
+# 2. CALCULATE DISTANCES
+
+N = len(cities)
+distance = np.zeros((N, N))
+
+for i in range(N):
+    for j in range(N):
+        distance[i][j] = np.linalg.norm(
+            np.array(cities[i]) - np.array(cities[j])
+        )
+
+# 3. INITIALIZE ACO PARAMETERS
+
+ants = int(input("\nEnter number of ants: "))
+iterations = int(input("Enter number of iterations: "))
+
+alpha = 1
+beta = 2
+rho = 0.5
+Q = 100
+
+pheromone = np.ones((N, N))
+heuristic = 1 / (distance + 0.01)
+
+best_route = None
+best_distance = float("inf")
+
+# 4. CONSTRUCT SOLUTIONS
+
+for iteration in range(iterations):
+
+    all_routes = []
+    all_distances = []
+
+    for ant in range(ants):
+
+        route = [0]
+        unvisited = list(range(1, N))
+
+        while unvisited:
+
+            current = route[-1]
+            probabilities = []
+
+            for city in unvisited:
+
+                p = (pheromone[current][city] ** alpha *
+                     heuristic[current][city] ** beta)
+
+                probabilities.append(p)
+
+            probabilities = np.array(probabilities)
+            probabilities /= probabilities.sum()
+
+            next_city = random.choices(
+                unvisited, weights=probabilities
+            )[0]
+
+            route.append(next_city)
+            unvisited.remove(next_city)
+
+        # Return to warehouse
+        route.append(0)
+
+        # Calculate total distance
+        total = sum(
+            distance[route[i]][route[i+1]]
+            for i in range(len(route)-1)
+        )
+
+        all_routes.append(route)
+        all_distances.append(total)
+
+        if total < best_distance:
+            best_distance = total
+            best_route = route.copy()
+
+    # 5. UPDATE PHEROMONES
+
+    pheromone *= (1 - rho)
+
+    for route, cost in zip(all_routes, all_distances):
+
+        for i in range(len(route)-1):
+
+            a = route[i]
+            b = route[i+1]
+
+            pheromone[a][b] += Q / cost
+
+# 6. INVENTORY DISTRIBUTION
+
+print("\n===== INVENTORY DISTRIBUTION =====")
+
+for i in range(n):
+    print(f"Store {i+1}: {demand[i]} units allocated")
+
+print("Total inventory distributed:", sum(demand))
+print("Remaining inventory:", inventory - sum(demand))
+
+# 7. OUTPUT BEST ROUTE
+
+print("\n===== OPTIMIZED SUPPLY CHAIN ROUTE =====")
+
+for city in best_route:
+
+    if city == 0:
+        print("Warehouse", end=" -> ")
+    else:
+        print(f"Store {city}", end=" -> ")
+
+print("\nMinimum Distribution Distance:",
+      round(best_distance, 2))
