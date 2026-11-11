@@ -1,0 +1,178 @@
+import numpy as np
+import random
+import math
+
+# -----------------------------------------
+# Fertilizer Mixture Optimization using CSA
+# -----------------------------------------
+
+print("FERTILIZER MIXTURE OPTIMIZATION")
+print("--------------------------------")
+
+# User input: Required nutrients
+required = np.array([
+    float(input("Enter required Nitrogen (kg): ")),
+    float(input("Enter required Phosphorus (kg): ")),
+    float(input("Enter required Potassium (kg): "))
+])
+
+# User input: Fertilizer costs
+cost = np.array([
+    float(input("Enter Urea cost per kg: ")),
+    float(input("Enter DAP cost per kg: ")),
+    float(input("Enter MOP cost per kg: "))
+])
+
+# Nutrient composition
+nutrients = np.array([
+    [0.46, 0.00, 0.00],
+    [0.18, 0.46, 0.00],
+    [0.00, 0.00, 0.60]
+])
+
+# CSA parameters
+N = int(input("Enter number of nests: "))
+Pa = float(input("Enter discovery probability (Pa): "))
+MaxIter = int(input("Enter maximum iterations: "))
+alpha = float(input("Enter step size (alpha): "))
+
+# Fertilizer quantity limits
+lower = np.zeros(3)
+
+upper = np.array([
+    float(input("Enter maximum Urea quantity (kg): ")),
+    float(input("Enter maximum DAP quantity (kg): ")),
+    float(input("Enter maximum MOP quantity (kg): "))
+])
+
+
+# -----------------------------------------
+# Fitness Function
+# -----------------------------------------
+
+def fitness(x):
+
+    supplied = np.dot(x, nutrients)
+
+    total_cost = np.dot(x, cost)
+
+    deficiency = np.maximum(required - supplied, 0)
+
+    penalty = 1000 * np.sum(deficiency)
+
+    return total_cost + penalty
+
+
+# -----------------------------------------
+# Levy Flight
+# -----------------------------------------
+
+def levy_flight():
+
+    beta = 1.5
+
+    sigma = (
+        math.gamma(1 + beta)
+        * np.sin(np.pi * beta / 2)
+        / (
+            math.gamma((1 + beta) / 2)
+            * beta
+            * 2 ** ((beta - 1) / 2)
+        )
+    ) ** (1 / beta)
+
+    u = np.random.normal(0, sigma, size=3)
+    v = np.random.normal(0, 1, size=3)
+
+    step = u / (np.abs(v) ** (1 / beta))
+
+    return step
+
+
+# -----------------------------------------
+# Initialize Nests
+# -----------------------------------------
+
+nests = np.random.uniform(lower, upper, (N, 3))
+
+fitness_values = np.array([
+    fitness(x) for x in nests
+])
+
+best_index = np.argmin(fitness_values)
+
+best_solution = nests[best_index].copy()
+best_fitness = fitness_values[best_index]
+
+
+# -----------------------------------------
+# Cuckoo Search Algorithm
+# -----------------------------------------
+
+for t in range(MaxIter):
+
+    for i in range(N):
+
+        j = random.randint(0, N - 1)
+
+        step = levy_flight()
+
+        new_solution = nests[i] + alpha * step
+
+        new_solution = np.clip(
+            new_solution,
+            lower,
+            upper
+        )
+
+        new_fitness = fitness(new_solution)
+
+        if new_fitness < fitness_values[j]:
+
+            nests[j] = new_solution
+            fitness_values[j] = new_fitness
+
+    # Abandon nests
+    for i in range(N):
+
+        if random.random() < Pa:
+
+            nests[i] = np.random.uniform(
+                lower,
+                upper
+            )
+
+            fitness_values[i] = fitness(nests[i])
+
+    # Update best solution
+    current_best = np.argmin(fitness_values)
+
+    if fitness_values[current_best] < best_fitness:
+
+        best_fitness = fitness_values[current_best]
+
+        best_solution = nests[current_best].copy()
+
+
+# -----------------------------------------
+# Display Results
+# -----------------------------------------
+
+print("\nOPTIMAL FERTILIZER MIXTURE")
+print("---------------------------")
+
+print("Urea :", round(best_solution[0], 2), "kg")
+print("DAP  :", round(best_solution[1], 2), "kg")
+print("MOP  :", round(best_solution[2], 2), "kg")
+
+supplied = np.dot(best_solution, nutrients)
+
+print("\nN supplied:", round(supplied[0], 2), "kg")
+print("P supplied:", round(supplied[1], 2), "kg")
+print("K supplied:", round(supplied[2], 2), "kg")
+
+print("\nTotal Fertilizer Cost:",
+      round(np.dot(best_solution, cost), 2))
+
+print("Minimum Fitness:",
+      round(best_fitness, 2))
