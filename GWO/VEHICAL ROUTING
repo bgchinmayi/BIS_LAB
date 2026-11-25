@@ -1,0 +1,188 @@
+
+import numpy as np
+
+# ---------------- USER INPUT ----------------
+
+# Get the total number of customers
+n = int(input("Enter number of customers: "))
+
+# Store depot location at index 0
+locations = [(0, 0)]
+
+# Get coordinates of each customer
+for i in range(n):
+    x, y = map(float, input(
+        f"Enter location of customer {i+1} (x y): "
+    ).split())
+
+    locations.append((x, y))
+
+# Get the demand of each customer
+# Depot demand is initialized as 0
+demand = [0]
+
+for i in range(n):
+    d = int(input(f"Enter demand of customer {i+1}: "))
+    demand.append(d)
+
+# Get maximum vehicle carrying capacity
+capacity = int(input("Enter vehicle capacity: "))
+
+# Set Grey Wolf Optimizer parameters
+wolves = 20          # Number of search agents
+iterations = 100     # Maximum number of iterations
+
+
+# ---------------- DISTANCE CALCULATION ----------------
+
+# Calculate Euclidean distance between two locations
+def distance(a, b):
+
+    return np.linalg.norm(
+        np.array(locations[a]) - np.array(locations[b])
+    )
+
+
+# ---------------- CREATE VEHICLE ROUTES ----------------
+
+# Convert a wolf's position into customer visiting order
+# and divide customers into routes based on vehicle capacity
+def create_routes(X):
+
+    # Sort wolf positions to get customer visiting order
+    order = np.argsort(X) + 1
+
+    routes = []       # Stores all vehicle routes
+    route = []        # Stores the current vehicle route
+    load = 0          # Tracks current vehicle load
+
+    for c in order:
+
+        # Check whether customer demand exceeds capacity
+        if demand[c] > capacity:
+            raise ValueError(
+                "Customer demand exceeds vehicle capacity"
+            )
+
+        # If capacity is exceeded, start a new vehicle
+        if load + demand[c] > capacity:
+
+            routes.append(route)
+            route = []
+            load = 0
+
+        # Add customer to the current vehicle route
+        route.append(c)
+
+        # Update the total load of the vehicle
+        load += demand[c]
+
+    # Add the final vehicle route
+    if route:
+        routes.append(route)
+
+    return routes
+
+
+# ---------------- FITNESS FUNCTION ----------------
+
+# Calculate the total distance travelled by all vehicles
+# Lower fitness value indicates a better solution
+def fitness(X):
+
+    total = 0
+
+    # Generate vehicle routes from the given wolf
+    for route in create_routes(X):
+
+        current = 0   # Every vehicle starts from depot 0
+
+        # Visit each customer in the route
+        for c in route:
+
+            # Add distance from current location to customer
+            total += distance(current, c)
+
+            # Update current location
+            current = c
+
+        # Add return distance from last customer to depot
+        total += distance(current, 0)
+
+    return total
+
+
+# ---------------- GREY WOLF OPTIMIZER ----------------
+
+def GWO():
+
+    # Initialize random positions of all wolves
+    X = np.random.rand(wolves, n)
+
+    # Repeat optimization for the given number of iterations
+    for t in range(iterations):
+
+        # Calculate fitness of every wolf
+        scores = np.array([fitness(w) for w in X])
+
+        # Sort wolves based on fitness values
+        idx = np.argsort(scores)
+
+        # Select the three best wolves
+        alpha = X[idx[0]].copy()   # Best solution
+        beta = X[idx[1]].copy()    # Second-best solution
+        delta = X[idx[2]].copy()   # Third-best solution
+
+        # Decrease control parameter gradually
+        a = 2 - 2*t/iterations
+
+        # Update the position of every wolf
+        for i in range(wolves):
+
+            # Update position based on Alpha wolf
+            A1 = 2*a*np.random.rand(n) - a
+            C1 = 2*np.random.rand(n)
+
+            X1 = alpha - A1*abs(C1*alpha - X[i])
+
+            # Update position based on Beta wolf
+            A2 = 2*a*np.random.rand(n) - a
+            C2 = 2*np.random.rand(n)
+
+            X2 = beta - A2*abs(C2*beta - X[i])
+
+            # Update position based on Delta wolf
+            A3 = 2*a*np.random.rand(n) - a
+            C3 = 2*np.random.rand(n)
+
+            X3 = delta - A3*abs(C3*delta - X[i])
+
+            # Calculate average of three updated positions
+            # Restrict positions between 0 and 1
+            X[i] = np.clip((X1+X2+X3)/3, 0, 1)
+
+    # Return the best wolf from the final population
+    return min(X, key=fitness)
+
+
+# ---------------- RUN THE PROGRAM ----------------
+
+# Execute Grey Wolf Optimization
+best = GWO()
+
+# Generate vehicle routes using the best solution
+routes = create_routes(best)
+
+
+# ---------------- DISPLAY RESULTS ----------------
+
+print("\nOPTIMAL VEHICLE ROUTES")
+
+# Display the route assigned to each vehicle
+for i, route in enumerate(routes):
+
+    print(f"Vehicle {i+1}: 0 ->",
+          " -> ".join(map(str, route)), "-> 0")
+
+# Display the minimum total travelling distance
+print("Minimum Distance:", round(fitness(best), 2))
