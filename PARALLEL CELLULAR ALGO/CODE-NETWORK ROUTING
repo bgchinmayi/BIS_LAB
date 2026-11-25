@@ -1,0 +1,141 @@
+
+# ---------------- PARALLEL CELLULAR ALGORITHM FOR NETWORK ROUTING ----------------
+
+
+# ---------------- GET NETWORK DETAILS ----------------
+
+# Get the total number of network nodes
+n = int(input("Enter number of network nodes: "))
+
+# Get the total number of connections between nodes
+e = int(input("Enter number of connections: "))
+
+
+# ---------------- CREATE ADJACENCY MATRIX ----------------
+
+# Initialize an n x n matrix with zeros
+# Each element represents the connection cost between two nodes
+graph = [[0]*n for _ in range(n)]
+
+print("Enter connections: source destination cost")
+
+# Get connection details from the user
+for i in range(e):
+
+    u, v, w = map(int, input().split())
+
+    # Store the connection cost between two nodes
+    # Subtract 1 because Python indexing starts from 0
+    graph[u-1][v-1] = w
+
+    # Store the reverse connection
+    # This represents an undirected network
+    graph[v-1][u-1] = w
+
+
+# ---------------- GET SOURCE AND DESTINATION ----------------
+
+# Get the starting node
+source = int(input("Enter source node: ")) - 1
+
+# Get the destination node
+destination = int(input("Enter destination node: ")) - 1
+
+
+# ---------------- INITIALIZE CELLS ----------------
+
+# Initialize distance of all nodes as infinity
+# Infinity means the destination is not yet reachable
+dist = [float('inf')] * n
+
+# Store the next node to visit for reaching the destination
+next_hop = [-1] * n
+
+# Distance from destination to itself is zero
+dist[destination] = 0
+
+
+# ---------------- PARALLEL CELLULAR ALGORITHM ----------------
+
+# Repeat the process n-1 times
+for t in range(n-1):
+
+    # Create copies of the current distance and next-hop arrays
+    # These temporary arrays store updated values
+    new_dist = dist.copy()
+    new_next = next_hop.copy()
+
+    # Each network node acts as an independent cell
+    for i in range(n):
+
+        # Skip the destination node
+        if i == destination:
+            continue
+
+        # Check all neighboring nodes
+        for j in range(n):
+
+            # Check whether a connection exists
+            # and whether the neighboring node is reachable
+            if graph[i][j] > 0 and dist[j] != float('inf'):
+
+                # Calculate the cost through neighboring node j
+                cost = graph[i][j] + dist[j]
+
+                # Check whether the new path is shorter
+                if cost < new_dist[i]:
+
+                    # Update the minimum distance
+                    new_dist[i] = cost
+
+                    # Store the next node in the shortest route
+                    new_next[i] = j
+
+    # Update all cells together after processing every node
+    # This represents simultaneous updating in the algorithm
+    dist = new_dist
+    next_hop = new_next
+
+
+# ---------------- DISPLAY BEST NETWORK ROUTE ----------------
+
+# Check whether the source node can reach the destination
+if dist[source] == float('inf'):
+
+    # Display message if no path exists
+    print("No route available")
+
+else:
+
+    # Initialize the path with the source node
+    path = [source]
+
+    # Set the current node as the source
+    current = source
+
+    # Continue until the destination is reached
+    while current != destination:
+
+        # Move to the next node in the shortest route
+        current = next_hop[current]
+
+        # Check whether the next node is invalid
+        # or already visited
+        if current == -1 or current in path:
+
+            print("Route reconstruction failed")
+            break
+
+        # Add the next node to the route
+        path.append(current)
+
+    else:
+
+        # Display the shortest network route
+        print("\nBest Network Route:")
+
+        # Convert node indices back to 1-based numbering
+        print(" -> ".join(str(x+1) for x in path))
+
+        # Display the minimum total network cost
+        print("Minimum Network Cost:", dist[source])
